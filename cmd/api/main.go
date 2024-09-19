@@ -16,9 +16,12 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/linus5304/internal/data"
 	"github.com/linus5304/internal/mailer"
+	"github.com/linus5304/internal/vcs"
 )
 
-const version = "1.0.0"
+var (
+	version = vcs.Version()
+)
 
 type config struct {
 	port int
