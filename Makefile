@@ -78,3 +78,31 @@ build/api:
 	@echo 'Building cmd/api...'
 	go build -ldflags='-s' -o=./bin/api ./cmd/api
 	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd/api ./cmd/api
+
+# ==================================================================================== #
+# PRODUCTION
+# ==================================================================================== #
+
+production_host_ip = '54.163.215.213'
+ssh_key = ../greenlight.pem
+## production/connect: connect to production server
+.PHONY: production/connect
+production/connect:
+	ssh -i ${ssh_key} greenlight@${production_host_ip}
+
+
+## production/deploy/api: deploy the api to production
+.PHONY: production/deploy/api
+production/deploy/api:
+	rsync -P -e "ssh -i ${ssh_key}" ./bin/linux_amd64/api greenlight@${production_host_ip}:~
+	rsync -rP --delete -e "ssh -i ${ssh_key}" ./migrations greenlight@${production_host_ip}:~
+	rsync -P -e "ssh -i ${ssh_key}" ./remote/production/api.service greenlight@${production_host_ip}:~
+	rsync -P -e "ssh -i ${ssh_key}" ./remote/production/Caddyfile greenlight@${production_host_ip}:~
+	ssh -i ${ssh_key} -t greenlight@${production_host_ip} '\
+		migrate -path ~/migrations -database $$GREENLIGHT_DB_DSN up \
+		&& sudo mv ~/api.service /etc/systemd/system/ \
+		&& sudo systemctl enable api \
+		&& sudo systemctl restart api \
+		&& sudo mv ~/Caddyfile /etc/caddy/ \
+		&& sudo systemctl reload caddy \
+	'
